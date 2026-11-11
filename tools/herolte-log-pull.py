@@ -26,6 +26,9 @@ def adb(tool, *args):
 
 
 def main():
+    if '-h' in sys.argv or '--help' in sys.argv:
+        print(__doc__.strip())
+        return 0
     if len(sys.argv) != 3:
         raise SystemExit(__doc__)
     tool, out = sys.argv[1], Path(sys.argv[2])

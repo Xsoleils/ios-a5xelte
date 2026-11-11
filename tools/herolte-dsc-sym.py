@@ -132,9 +132,17 @@ def lookup(d, addrs):
         print(f'{a:#x} {img} {sym}')
 
 
-if __name__ == '__main__':
+def main():
+    if len(sys.argv) < 3 or sys.argv[1] in ('-h', '--help'):
+        print(__doc__.strip())
+        return 0 if len(sys.argv) > 1 and sys.argv[1] in ('-h', '--help') else 1
     d = sys.argv[1]
     if sys.argv[2] == 'build':
         build(d)
     else:
         lookup(d, [int(x, 16) for x in sys.argv[2:]])
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

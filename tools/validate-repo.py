@@ -17,12 +17,22 @@ import argparse, glob, os, py_compile, re, subprocess, sys
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+if sys.platform == 'win32':
+    try:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
+
 def green(text): return f"\033[92m{text}\033[0m"
 def red(text): return f"\033[91m{text}\033[0m"
 def bold(text): return f"\033[1m{text}\033[0m"
 
 
-def validate_patches(verbose=False):
+def validate_patches(verbose=False, strict_contiguous=False):
     patch_dir = os.path.join(REPO_ROOT, 'xnu/patches')
     patch_files = sorted(glob.glob(os.path.join(patch_dir, '*.patch')))
     if not patch_files:
@@ -54,8 +64,8 @@ def validate_patches(verbose=False):
             if not ('--- ' in head or 'diff ' in head or 'Index:' in head):
                 errors.append(f"Patch missing standard diff header: {fname}")
 
-    # Check contiguous sequence
-    if seen_numbers:
+    # Check sequence
+    if seen_numbers and strict_contiguous:
         sorted_nums = sorted(seen_numbers.keys())
         expected = 1
         for num in sorted_nums:
@@ -71,7 +81,9 @@ def validate_patches(verbose=False):
             print(f"    - {err}")
         return False
 
-    print(green(f"[✓] Validated {len(patch_files)} patches (0001-{len(patch_files):04d} contiguous, format OK)"))
+    min_num = min(seen_numbers.keys()) if seen_numbers else 0
+    max_num = max(seen_numbers.keys()) if seen_numbers else 0
+    print(green(f"[OK] Validated {len(patch_files)} patches ({min_num:04d}-{max_num:04d}, format & uniqueness OK)"))
     return True
 
 
@@ -95,7 +107,7 @@ def validate_python_scripts(verbose=False):
             print(f"    - {err}")
         return False
 
-    print(green(f"[✓] Validated {len(py_files)} Python tools (syntax OK)"))
+    print(green(f"[OK] Validated {len(py_files)} Python tools (syntax OK)"))
     return True
 
 
@@ -121,17 +133,18 @@ def validate_shell_scripts(verbose=False):
             print(f"    - {err}")
         return False
 
-    print(green(f"[✓] Validated {len(sh_files)} Shell scripts (syntax OK)"))
+    print(green(f"[OK] Validated {len(sh_files)} Shell scripts (syntax OK)"))
     return True
 
 
 def main():
     ap = argparse.ArgumentParser(description="Validate repository integrity, patches, and scripts.")
     ap.add_argument('-v', '--verbose', action='store_true', help='Show detailed per-file output')
+    ap.add_argument('--strict-contiguous', action='store_true', help='Enforce strictly contiguous patch numbers without series gaps')
     a = ap.parse_args()
 
     print(bold("=== Running ios-sweet Repository Validation ==="))
-    ok_patches = validate_patches(a.verbose)
+    ok_patches = validate_patches(a.verbose, a.strict_contiguous)
     ok_python = validate_python_scripts(a.verbose)
     ok_shell = validate_shell_scripts(a.verbose)
 
